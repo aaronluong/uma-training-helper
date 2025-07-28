@@ -3,3 +3,5 @@ numpy
 openocr-python
 onnxruntime
 mss
+psutil
+PyWinCtl
