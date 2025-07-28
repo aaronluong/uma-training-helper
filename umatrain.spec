@@ -1,9 +1,18 @@
 # -*- mode: python ; coding: utf-8 -*-
+
+import os
+import sys
+import sysconfig
+
+here = os.path.abspath(os.path.dirname(__file__))
+
+site_packages = sysconfig.get_paths()['purelib']
+
 block_cipher = None
 
 a = Analysis(
     ['helper.py'],
-    pathex=['.',r'C:\Anaconda\envs\helper\Lib\site-packages'],
+    pathex=[here, site_packages],
     binaries=[],
     datas=[('skills.json', '.'),
     ('effects.json', '.'),
