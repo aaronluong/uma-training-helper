@@ -20,7 +20,7 @@ a = Analysis(
     ('costumeEvents.json', '.'),
     ('costumes.json', '.'),
     ('supports', 'supports'),
-    (r'C:\Anaconda\envs\helper\Lib\site-packages\openocr','openocr')
+    (os.path.join(site_packages,'openocr'),'openocr')
     ],
     hiddenimports=[
         'tools.infer_e2e',
