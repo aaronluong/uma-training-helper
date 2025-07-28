@@ -13,7 +13,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-        python-version: [3.9]
+        python-version: [3.11]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -38,7 +38,7 @@ jobs:
           pyinstaller umatrain.spec
 
       - name: 📦 Upload build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: umatrain-${{ matrix.os }}
           path: |
