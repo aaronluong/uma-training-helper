@@ -1,0 +1,6 @@
+*_files
+*.htm
+*.png
+build/*
+dist/*
+e2e_results/*
