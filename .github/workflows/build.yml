@@ -37,10 +37,16 @@ jobs:
         run: |
           pyinstaller umatrain.spec
 
-      - name: 📦 Upload build artifacts
+      - name: Upload Windows exe
+        if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
-          name: umatrain-${{ matrix.os }}
-          path: |
-            dist/umatrain.exe        # on Windows
-            dist/umatrain            # on Linux
+          name: umatrain-windows
+          path: dist/umatrain.exe
+
+      - name: Upload Linux binary
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: umatrain-linux
+          path: dist/umatrain
