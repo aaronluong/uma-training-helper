@@ -4,7 +4,7 @@ import os
 import sys
 import sysconfig
 
-here = os.path.abspath(os.path.dirname(__file__))
+here = os.getcwd()
 
 site_packages = sysconfig.get_paths()['purelib']
 
