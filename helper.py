@@ -240,7 +240,7 @@ class AlwaysOnTopWindow:
         self.root.title("Status")
         self.root.attributes("-topmost", True)
         self.root.resizable(True, True)
-        self.root.geometry("400x400")
+        self.root.geometry("300x300")
 
         self.costumes = costumes
         self.supports = supports
@@ -306,6 +306,9 @@ class AlwaysOnTopWindow:
         """
         # convert to PIL then to PhotoImage
         img = Image.fromarray(npArray.astype("uint8"), "RGB")
+        currentW = self.root.winfo_width()
+        factor =  currentW / npArray.shape[1] * .75
+        img = img.resize((np.array(npArray.shape[:-1])[::-1] * factor).astype(int),resample=Image.Resampling.NEAREST)
         self._photoImage = ImageTk.PhotoImage(img)
         self.imageLabel.config(image=self._photoImage)
 
@@ -315,7 +318,6 @@ class AlwaysOnTopWindow:
         reqH = self.imageLabel.winfo_reqheight()
         padX, padY = 20, 20
 
-        currentW = self.root.winfo_width()
         currentH = self.root.winfo_height()
 
         newW = max(currentW, reqW + padX)
