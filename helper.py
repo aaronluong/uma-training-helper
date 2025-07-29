@@ -11,6 +11,8 @@ import os
 import sys
 import psutil
 import pywinctl as pwc
+from rapidfuzz import process, fuzz
+from collections import Counter
 
 
 if getattr(sys, 'frozen', False):
@@ -25,6 +27,72 @@ def loadSupportJson(filename):
     return json.load(open(os.path.join(basePath, 'supports', filename)))
 
 FILTERTOGLOBAL = True
+
+
+from collections import Counter
+
+def fuzzyMatchTranscriptions(result, searchSpace,
+                             topMatchesPerToken: int = 10,
+                             minTokenScore: int = 20,
+                             minFinalScore: int = 50):
+    """
+    result: list of substring tokens (e.g. ["Trainee", "Event", "Seeking", "Uniquenes"])
+    searchSpace: dict mapping correct keys (strings) to their values
+    topMatchesPerToken: how many fuzzy matches to pull per token
+    minTokenScore: minimum per‐token fuzz.ratio score to consider
+    minFinalScore: minimum fuzz.token_set_ratio score on the full query
+    Returns the value for the best‐matching key, or None if no match passes thresholds.
+    """
+    if not result:
+        return None, None
+
+    dictKeys = list(searchSpace.keys())
+    tokenMatches = []
+
+    print('Awkward Honesty' in dictKeys)
+    # 1) Fuzzy‐match each token individually
+    for token in result:
+        matches = process.extract(
+            token,
+            dictKeys,
+            scorer=fuzz.ratio,
+            limit=topMatchesPerToken
+        )
+        best = max(matches,key = lambda m: m[1])
+        if best[1] > 80:
+            return searchSpace[best[0]], best[0]
+        print(token)
+        print(matches)
+        # keep only those above the token‐score threshold
+        tokenMatches += [m for m in matches if m[1] >= minTokenScore]
+
+    if not tokenMatches:
+        return None, None
+
+    # 2) Count how often each key appeared across tokens
+    matchCounts = Counter(m[0] for m in tokenMatches)
+    print(matchCounts)
+    # rank keys by descending count
+    candidates = [k for k, _ in matchCounts.most_common()]
+    print(candidates)
+
+    # 3) Final full‐string check on the top candidates
+    fullQuery = "".join(result)
+    finalScores = process.extract(
+        fullQuery,
+        candidates[:topMatchesPerToken],
+        scorer=fuzz.token_set_ratio,
+        limit=1
+    )
+    print(finalScores)
+    if not finalScores:
+        return None, None
+
+    bestKey, bestScore, _ = finalScores[0]
+    if bestScore < minFinalScore:
+        return None, None
+
+    return searchSpace[bestKey], bestKey
 
 def find_window_by_process_name(proc_name):
     # 1) find the PID for your executable
@@ -90,25 +158,28 @@ def fuzzymatch(transcription, supportDict, threshold=0.8):
         return bestMatch,supportDict[bestMatch]
     return None, None
 
+
+
 def preprocessResults(results):
-    topYs = {}
-    for val in results:
-        topLeft, topRight, bottomRight, bottomLeft = val['points']
-        transcription = val['transcription']
-        roundedY = round(topLeft[1],-1)
-        if roundedY not in topYs:
-            topYs[roundedY] = []
-        topYs[roundedY].append(transcription)
-    return [' '.join(val) for val in topYs.values()]
+    return [val['transcription'] for val in results]
+    # topYs = {}
+    # for val in results:
+    #     topLeft, topRight, bottomRight, bottomLeft = val['points']
+    #     transcription = val['transcription']
+    #     roundedY = customRound(topLeft[1])
+    #     if roundedY not in topYs:
+    #         topYs[roundedY] = []
+    #     topYs[roundedY].append(transcription)
+    # return [' '.join(val) for val in topYs.values()]
 
 
 def update_loop(win,engine,game):
     # sct = mss()
     currentMatch = ''
+    mask = None
     while True:
         try:
             if not game.isActive:
-                print('not visible')
                 currentMatch = ''
                 win.update_text('window not visible, please click on game')
                 time.sleep(1)
@@ -118,39 +189,49 @@ def update_loop(win,engine,game):
             im = Image.open(filename)
             xmin,xmax = getGameArea(np.array(im.convert('L')))
             _,height = im.size
-            im = im.crop((xmin,height//6,xmax,height//4))
+            arr = np.array(im)
+            if mask is None:
+                mask = np.zeros_like(arr)
+            mask[:] = 0
+            mask[height//6:height//4,xmin:xmax] = 1
+            arr = np.where(mask,arr,0)
+            im = Image.fromarray(arr)
+            
+            # im = im.crop((xmin,height//6,xmax,height//4))
             # win.set_image(np.array(im.convert('RGB')))
             im.save(filename)
-            result,_ = engine(filename)
-            if result is None:
+            result = engine(filename)
+            win.set_image(np.array(im.convert('RGB'))[height//6:height//4,xmin:xmax])
+            if result is None or result[0] is None:
                 win.update_text(f'Polling screen for events...\nDEBUG:\n'+'NO DETECTIONS')
-                win.set_image(np.array(im.convert('RGB')))
                 time.sleep(1)
                 continue
-            result = json.loads(result[0].split('\t')[-1])
+            result = json.loads(result[0][0].split('\t')[-1])
             result = preprocessResults(result)
             # win.update_text(f"{xmin} {xmax}\n"+'\n'.join(result))
-            for val in result:
-                event,match = fuzzymatch(val,win.searchSpace)
-                if match == currentMatch:
-                    time.sleep(2)
-                    break
-                if match:
-                    currentMatch = match
-                    toDisplay = f'Detected event: {event}\n'+match
-                    win.update_text(toDisplay)
-                    win.set_image(np.zeros((10,10,3)))
-                    break
+            # for val in result:
+            #     event,match = fuzzymatch(val,win.searchSpace)
+            match, event = fuzzyMatchTranscriptions(result,win.searchSpace)
+            if match == currentMatch:
+                time.sleep(2)
+                continue
+            if match:
+                currentMatch = match
+                toDisplay = f'Detected event: {event}\n'+match
+                win.update_text(toDisplay)
+                # win.set_image(np.array(im.convert('RGB'))[height//6:height//4,xmin:xmax])
             else:
                 win.update_text(f'Polling screen for events...\nDEBUG:\n'+'\n'.join(result))
-                win.set_image(np.array(im.convert('RGB')))
+                # win.set_image(np.array(im.convert('RGB'))[height//6:height//4,xmin:xmax])
             time.sleep(.5)
         except KeyboardInterrupt:
             exit()
-        except Exception as e:
-            print(e)
+        except PermissionError:
             time.sleep(.5)
-            continue
+        # except Exception as e:
+        #     print(e)
+        #     time.sleep(.5)
+        #     continue
 
 
 class AlwaysOnTopWindow:
@@ -252,42 +333,75 @@ if __name__ == "__main__":
     traineeEvents = loadJson('traineeEvents.json')
     costumeEvents = loadJson('costumeEvents.json')
     costumes = loadJson('costumes.json')
-    td = {'bo':'Bond','sk': 'Skill','en':'Energy','sp':'Speed','mo':'Mood','po':'Power','pt':'Skill Points','st':'Stamina','in':'Wit','gu':'Guts','me': 'Max Energy','5s':'All Stats','se': 'Effect','sg':'Negative skill','mt':'Performance token you have the least of','sga':'Star gauge','all_disc':'All discipline levels','sr':'Multiple skills possible'}
-    td2 = {'ds':'Datable','ee':'End Chain','he':'Heal status','rs':'Random stat','di':'OR','nl': '^ if not linked','sl': 'If linked vvv'}
+    races = loadJson('races.json')
+    td = {'bo':'Bond','sk': 'Skill','en':'Energy','sp':'Speed','mo':'Mood','po':'Power','pt':'Skill Points','st':'Stamina','in':'Wit','gu':'Guts','me': 'Max Energy','5s':'All Stats','se': 'Effect',\
+          'sg':'Negative skill','sre': 'Skill removed','mt':'Performance token you have the least of','sga':'Star gauge','all_disc':'All discipline levels','sr':'Multiple skills possible',\
+            'rc': 'Race change','sc':'Secret check','ls':'Last trained stat','fd':'Lock','fa':'Fans','stat_not_disabled':'Stat that wasnt disabled','ra':'Cancel goal','se_h':'if effect healed',\
+                'se_nh':'If effect not healed','track_hint':'Relevant track hint','unspecified stats':'Stats','hp':'Remove skill','co':'If season is','bo_r':'Bond of random support cards'}
+    td2 = {'ds':'Datable','ee':'End Chain','he':'Heal status','rs':'Random stat','di':'OR','nl': '\n','sl': 'If linked vvv','n':'nothing','o':'nothing','no':'nothing',\
+           'result_good':"Good Result",'result_average':'Average Result','result_bad': "Bad Result",'motivation_good':'Mood >= Good','motivation_not_good': 'Mood < Good','ct':'???','rr':'Standard race rewards',\
+            'other_cases':'All other cases','rl':'Cannot race','brian_tryhard':'Increase difficulty and rewards of goals','fe':'idk gametora dev wont tell me','s_nore':'idk',\
+                'highest_facility':'depends on highest level facility','expensive_races':'Races cost more energy','brf':'affects next event','brp':'dependent on previous event','di_s':'','fans_minimum':'Need fans',\
+                    'fans_maximum':'needs this many fans','bp2':'cant be bothered'}
 
     def parseChoice(c):
         acc = ''
         for val in c:
-            if val['t'] in ['sk','sg']:
+            if val['t'] in ['sc','','ps_h','ps_nh']:
+                continue
+            if val['t'] == 'et':
+                acc += f"Event {val['d']} will occur next turn\n"
+                continue
+            elif val['t'] == 'rl':
+                acc += f"cannot race for {val['d']} turns\n"
+                continue
+            if val['t'] in ['sk','sg','sre','hp']:
                 skill = skills[str(val['d'])]
             elif val['t'] == 'se':
                 skill = effects[str(val['d'])]
+            elif val['t'] in ['rc','ra']:
+                skill = races[str(val['d'])]
+            elif val['t'] == 'sc':
+                skill = effects[str(val['d'][1])]
             elif val['t'] == 'sr':
                 for v in val['d']:
                     acc += f"{skills[str(v['d'])]} {v['v']}"
-                acc += 'n'
+                acc += '\n'
+                continue
+            elif val['t'] == 'unspecified_stats':
+                acc += f"{val['d']} Stats {val['v']}\n"
+                continue
+            elif val['t'] == 'co':
+                acc += f"If season is {val['d']}\n"
+                continue
+            elif val['t'] == 'bo_r':
+                acc+= f"Boosts bond of {val['d']} random support cards {val['v']}"
                 continue
             else:
                 skill = ''
             
+            if val['t'] == 'fd':
+                acc+= f"lock {val['d']} training options randomly"
+                continue
+
             if val['t'] in td2:
                 acc += f"{td2[val['t']]}\n"
                 continue
-            
-            acc += f"{td[val['t']]} {skill} {val['v']} {'(Random)' if 'r' in val else ''}\n"
+            # print(val)
+            acc += f"{td[val['t']]} {skill} {val['v'] if 'v' in val else ''} {'(Random)' if 'r' in val else ''}\n"
         return acc
 
     supports = {}
     traineeAndCostumeEvents = {}
+    errors = set()
     for events in [traineeEvents,costumeEvents]:
         for k,v in events.items():
             traineeAndCostumeEvents[k] = {}
             for eventName, eventData in v.items():
-                try:
-                    traineeAndCostumeEvents[k][eventName] = 'Top Choice:\n'+'\nBottom Choice:\n'.join([parseChoice(c) for c in eventData])
-                #TODO: There's JP events I haven't implemented yet
-                except KeyError:
-                    pass
+                
+                traineeAndCostumeEvents[k][eventName] = 'Top Choice:\n'+'\nBottom Choice:\n'.join([parseChoice(c) for c in eventData])
+                
+    
 
 
     for f in os.listdir(os.path.join(basePath, 'supports')):
@@ -297,11 +411,15 @@ if __name__ == "__main__":
             for val in v:
                 try:
                     extracted[val['n']] = 'Top Choice:\n'+'\nBottom Choice:\n'.join([parseChoice(c['r']) for c in val['c']])
-                #TODO: Same as above
-                except KeyError:
+                #TODO: JP stuff
+                except KeyError as e:
                     pass
+                    # print(f,e,val)
+                    # errors.add(e)
+                    # exit()
         supports.update(extracted)
-
+    # print(len(errors))
+    # exit()
 
     if FILTERTOGLOBAL:
         costumes = {k:v for k,v in costumes.items() if v[-1]}
