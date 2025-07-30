@@ -33,8 +33,8 @@ from collections import Counter
 
 def fuzzyMatchTranscriptions(result, searchSpace,
                              topMatchesPerToken: int = 10,
-                             minTokenScore: int = 20,
-                             minFinalScore: int = 50):
+                             minTokenScore: int = 30,
+                             minFinalScore: int = 80):
     """
     result: list of substring tokens (e.g. ["Trainee", "Event", "Seeking", "Uniquenes"])
     searchSpace: dict mapping correct keys (strings) to their values
@@ -405,7 +405,6 @@ if __name__ == "__main__":
                 
     
 
-
     for f in os.listdir(os.path.join(basePath, 'supports')):
         data = json.loads(loadSupportJson(f)['eventData']['en'])
         extracted = {}
@@ -420,6 +419,8 @@ if __name__ == "__main__":
                     # errors.add(e)
                     # exit()
         supports.update(extracted)
+
+    supports['Extra Training'] = f"Top Choice:\nLast trained stat +5\nEnergy -5\n(random) Heal a negative status effect\nYayoi Akikawa bond +5\nBottom Choice:\nEnergy +5"
     # print(len(errors))
     # exit()
 
