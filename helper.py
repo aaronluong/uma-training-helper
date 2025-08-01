@@ -97,7 +97,7 @@ def fuzzyMatchTranscriptions(result, searchSpace,
 def find_window_by_process_name(proc_name):
     # 1) find the PID for your executable
     for proc in psutil.process_iter(['pid','name']):
-        if proc.info['name'].lower() == proc_name.lower():
+        if proc_name in proc_name.lower():
             pid = proc.info['pid']
             break
     else:
@@ -442,11 +442,11 @@ if __name__ == "__main__":
 
 
     engine = OpenOCR(backend='onnx', device='cpu')
-    target = 'UmamusumePrettyDerby.exe' if sys.platform == 'win32' else 'umamusumepretty'
+    # target = 'UmamusumePrettyDerby.exe' if sys.platform == 'win32' else 'umamusumepretty'
     win = None
     print('Looking for uma musume exe')
     while win is None:
-        win = find_window_by_process_name(target)
+        win = find_window_by_process_name('umamusume')
         time.sleep(1)
     print('found uma musume')
 
