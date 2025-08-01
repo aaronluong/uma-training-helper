@@ -20,6 +20,7 @@ a = Analysis(
     ('costumeEvents.json', '.'),
     ('costumes.json', '.'),
     ('races.json','.'),
+    ('scenarioEvents.json,'.'),
     ('supports', 'supports'),
     (os.path.join(site_packages,'openocr'),'openocr')
     ],

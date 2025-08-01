@@ -190,8 +190,8 @@ def update_loop(win,engine,game):
             xmin,xmax = getGameArea(np.array(im.convert('L')))
             _,height = im.size
             arr = np.array(im)
-            if mask is None:
-                mask = np.zeros_like(arr)
+            
+            mask = np.zeros_like(arr)
             mask[:] = 0
             mask[height//6:height//4,xmin:xmax] = 1
             arr = np.where(mask,arr,0)
@@ -235,7 +235,7 @@ def update_loop(win,engine,game):
 
 
 class AlwaysOnTopWindow:
-    def __init__(self, supports, costumes, traineeEvents):
+    def __init__(self, supports, costumes, traineeEvents,scenarioEvents):
         self.root = tk.Tk()
         self.root.title("Status")
         self.root.attributes("-topmost", True)
@@ -245,6 +245,7 @@ class AlwaysOnTopWindow:
         self.costumes = costumes
         self.supports = supports
         self.traineeEvents = traineeEvents
+        self.scenarioEvents = scenarioEvents
 
         # Dropdown menu
         self.dropdownVar = tk.StringVar(
@@ -282,6 +283,7 @@ class AlwaysOnTopWindow:
         self.searchSpace.update(self.supports)
         self.searchSpace.update(self.traineeEvents[ids[0]])
         self.searchSpace.update(self.traineeEvents[ids[1]])
+        self.searchSpace.update(self.scenarioEvents)
 
     def update_text(self, text):
         self.labelVar.set(text)
@@ -336,6 +338,7 @@ if __name__ == "__main__":
     costumeEvents = loadJson('costumeEvents.json')
     costumes = loadJson('costumes.json')
     races = loadJson('races.json')
+    scenarios = loadJson('scenarioEvents.json')
     td = {'bo':'Bond','sk': 'Skill','en':'Energy','sp':'Speed','mo':'Mood','po':'Power','pt':'Skill Points','st':'Stamina','in':'Wit','gu':'Guts','me': 'Max Energy','5s':'All Stats','se': 'Effect',\
           'sg':'Negative skill','sre': 'Skill removed','mt':'Performance token you have the least of','sga':'Star gauge','all_disc':'All discipline levels','sr':'Multiple skills possible',\
             'rc': 'Race change','sc':'Secret check','ls':'Last trained stat','fd':'Lock','fa':'Fans','stat_not_disabled':'Stat that wasnt disabled','ra':'Cancel goal','se_h':'if effect healed',\
@@ -402,6 +405,14 @@ if __name__ == "__main__":
             for eventName, eventData in v.items():
                 
                 traineeAndCostumeEvents[k][eventName] = 'Top Choice:\n'+'\nBottom Choice:\n'.join([parseChoice(c) for c in eventData])
+
+    scenarioEvents = {}
+    for eventName,eventData in scenarios.items():
+        try:
+            scenarioEvents[eventName] = 'Top Choice:\n'+'\nBottom Choice:\n'.join([parseChoice(c) for c in eventData])
+        #JP stuff
+        except KeyError:
+            pass
                 
     
 
@@ -420,7 +431,9 @@ if __name__ == "__main__":
                     # exit()
         supports.update(extracted)
 
+
     supports['Extra Training'] = f"Top Choice:\nLast trained stat +5\nEnergy -5\n(random) Heal a negative status effect\nYayoi Akikawa bond +5\nBottom Choice:\nEnergy +5"
+    supports['Acupuncture (Just an Acupuncturist, No Worries! ☆)'] = 'Option 1\n\nRandomly either (~30%)\nAll stats +20\nor (~70%)\nMood -2\nAll stats -15\nGet Night Owl status\n\nOption 2\n\nRandomly either (~45%)\nObtain Corner Recovery ○ skill\nObtain Straightaway Recovery skill\nor (~55%)\nEnergy -20\nMood -2\n\nOption 3\n\nRandomly either (~70%)\nMaximum Energy +12\nEnergy +40\nHeal all negative status effects\nor (~30%)\nEnergy -20\nMood -2\nGet Practice Poor status\n\nOption 4\n\nRandomly either (~85%)\nEnergy +20\nMood +1\nGet Charming ○ status\nor (~15%)\nEnergy -10/-20\nMood -1\n(random) Get Practice Poor status\n\nOption 5\n\nEnergy +10'
     # print(len(errors))
     # exit()
 
@@ -439,6 +452,6 @@ if __name__ == "__main__":
 
 
 
-    window = AlwaysOnTopWindow(supports,costumes,traineeAndCostumeEvents)
+    window = AlwaysOnTopWindow(supports,costumes,traineeAndCostumeEvents,scenarioEvents)
     threading.Thread(target=update_loop, args=(window,engine,win), daemon=True).start()
     window.run()
