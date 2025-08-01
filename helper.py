@@ -442,7 +442,7 @@ if __name__ == "__main__":
 
 
     engine = OpenOCR(backend='onnx', device='cpu')
-    target = 'UmamusumePrettyDerby.exe' if sys.platform == 'win32' else 'UmamusumePrettyDerby'
+    target = 'UmamusumePrettyDerby.exe' if sys.platform == 'win32' else 'umamusumepretty'
     win = None
     print('Looking for uma musume exe')
     while win is None:
