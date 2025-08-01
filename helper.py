@@ -97,7 +97,7 @@ def fuzzyMatchTranscriptions(result, searchSpace,
 def find_window_by_process_name(proc_name):
     # 1) find the PID for your executable
     for proc in psutil.process_iter(['pid','name']):
-        if proc_name in proc_name.lower():
+        if proc_name.lower() in proc.info['name'].lower():
             pid = proc.info['pid']
             break
     else:
