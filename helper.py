@@ -126,26 +126,6 @@ def grab_window(window, output_path='capture.png'):
 def getGameArea(arr):
     width = arr.shape[1]
     return (int(width * .075),int(width * .35))
-    # arr = (~np.all(arr > 200,axis=0))
-    # print(arr.shape)
-    # threshold = len(arr) // 30
-    # padded = np.array([False] + list(arr) + [False])
-    # diffs = np.diff(padded.astype(int))
-
-    # # Start (where it goes from False to True) and end (True to False) indices
-    # starts = np.where(diffs == 1)[0]
-    # ends = np.where(diffs == -1)[0]
-
-    # # Filter by threshold
-    # lengths = ends - starts
-    # valid = np.where(lengths >= threshold)[0]
-
-    # if len(valid) > 0:
-    #     first_idx = valid[0]
-    #     start_idx = starts[first_idx]
-    #     end_idx = ends[first_idx] - 1
-        
-    # return (start_idx,end_idx)
 
 def fuzzymatch(transcription, supportDict, threshold=0.8):
     bestMatch = None
@@ -160,18 +140,7 @@ def fuzzymatch(transcription, supportDict, threshold=0.8):
     return None, None
 
 
-
-def preprocessResults(results):
-    return [val['transcription'] for val in results]
-    # topYs = {}
-    # for val in results:
-    #     topLeft, topRight, bottomRight, bottomLeft = val['points']
-    #     transcription = val['transcription']
-    #     roundedY = customRound(topLeft[1])
-    #     if roundedY not in topYs:
-    #         topYs[roundedY] = []
-    #     topYs[roundedY].append(transcription)
-    # return [' '.join(val) for val in topYs.values()]
+preprocessResults = lambda result: [val['transcription'] for val in result]
 
 
 def update_loop(win,engine,game):
@@ -185,33 +154,25 @@ def update_loop(win,engine,game):
                 win.update_text('window not visible, please click on game')
                 time.sleep(1)
                 continue
-            # filename = sct.shot()
             filename = grab_window(game)
             im = Image.open(filename)
             xmin,xmax = getGameArea(np.array(im.convert('L')))
             _,height = im.size
             arr = np.array(im)
-            
             mask = np.zeros_like(arr)
             mask[:] = 0
             mask[height//6:height//4,xmin:xmax] = 1
             arr = np.where(mask,arr,0)
             im = Image.fromarray(arr)
-            
-            # im = im.crop((xmin,height//6,xmax,height//4))
-            # win.set_image(np.array(im.convert('RGB')))
-            im.save(filename)
-            result = engine(filename)
+            result = engine(img_numpy = np.array(im.convert('RGB')))
             win.set_image(np.array(im.convert('RGB'))[height//6:height//4,xmin:xmax])
-            if result is None or result[0] is None:
+            if result is None or len(result[0][0]) == 0 :
                 win.update_text(f'Polling screen for events...\nDEBUG:\n'+'NO DETECTIONS')
                 time.sleep(1)
                 continue
-            result = json.loads(result[0][0].split('\t')[-1])
+            result = result[0][0]
+            print(result)
             result = preprocessResults(result)
-            # win.update_text(f"{xmin} {xmax}\n"+'\n'.join(result))
-            # for val in result:
-            #     event,match = fuzzymatch(val,win.searchSpace)
             match, event = fuzzyMatchTranscriptions(result,win.searchSpace)
             if match == currentMatch:
                 time.sleep(2)
@@ -220,10 +181,8 @@ def update_loop(win,engine,game):
                 currentMatch = match
                 toDisplay = f'Detected event: {event}\n'+match
                 win.update_text(toDisplay)
-                # win.set_image(np.array(im.convert('RGB'))[height//6:height//4,xmin:xmax])
             else:
                 win.update_text(f'Polling screen for events...\nDEBUG:\n'+'\n'.join(result))
-                # win.set_image(np.array(im.convert('RGB'))[height//6:height//4,xmin:xmax])
             time.sleep(.5)
         except KeyboardInterrupt:
             exit()
@@ -443,7 +402,6 @@ if __name__ == "__main__":
 
 
     engine = OpenOCR(backend='onnx', device='cpu')
-    # target = 'UmamusumePrettyDerby.exe' if sys.platform == 'win32' else 'umamusumepretty'
     win = None
     print('Looking for uma musume exe')
     while win is None:
