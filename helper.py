@@ -17,6 +17,7 @@ from collections import Counter
 
 if getattr(sys, 'frozen', False):
     basePath = sys._MEIPASS
+    os.chdir(basePath)
 else:
     basePath = os.path.dirname(os.path.abspath(__file__))
 
@@ -112,7 +113,7 @@ def find_window_by_process_name(proc_name):
 def grab_window(window, output_path='capture.png'):
     # window.box is (left, top, width, height)
     left, top, width, height = window.box
-    print(left,top,width,height)
+    # print(left,top,width,height)
     with mss() as sct:
         monitor = {'left': left, 'top': top, 'width': width, 'height': height}
         sct_img = sct.grab(monitor)
