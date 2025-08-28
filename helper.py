@@ -13,10 +13,13 @@ import psutil
 import pywinctl as pwc
 from rapidfuzz import process, fuzz
 from collections import Counter
-
+from datetime import datetime
+import requests
+import re
+import html
 
 if getattr(sys, 'frozen', False):
-    basePath = sys._MEIPASS
+    basePath = os.path.dirname(__file__)
     os.chdir(basePath)
 else:
     basePath = os.path.dirname(os.path.abspath(__file__))
@@ -50,7 +53,6 @@ def fuzzyMatchTranscriptions(result, searchSpace,
     dictKeys = list(searchSpace.keys())
     tokenMatches = []
 
-    print('Awkward Honesty' in dictKeys)
     # 1) Fuzzy‐match each token individually
     for token in result:
         matches = process.extract(
@@ -289,6 +291,36 @@ class AlwaysOnTopWindow:
     def run(self):
         self.root.mainloop()
 
+def checkForUpdates():
+    pageUrl="https://gametora.com/umamusume/characters"
+    r = requests.get(pageUrl, timeout=15)
+    r.raise_for_status()
+    m = re.search(r'id="__NEXT_DATA__"[^>]*>(.*?)</script>', r.text, re.S)
+    if not m:
+        raise RuntimeError("Couldn't find __NEXT_DATA__ on the page.")
+    nextDataRaw = html.unescape(m.group(1))
+    nextData = json.loads(nextDataRaw)
+    buildId =  nextData["buildId"]
+    linkify = lambda val: f'https://gametora.com/_next/data/{buildId}/umamusume/supports/{val}.json?id={val}'
+    matches = [val.split('.')[0] for val in os.listdir(os.path.join(basePath,'supports'))]
+
+    matches = [val[0] for val in sorted([[name,datetime.strptime(json.load(open(os.path.join(basePath,f'supports/{name}.json')))['itemData']['release'],r'%Y-%m-%d')] for name in matches],key = lambda val: val[1])]
+    print('checking...')
+    for match in matches:
+        
+        # if 'release' not in json.load(open(f'supports/{match}.json'))['itemData']:
+        #     print(match)
+        if 'release_en' in open(os.path.join(basePath,f'supports/{match}.json')).read():
+            continue
+        
+        result = requests.get(linkify(match))
+        data = json.loads(result.content)['pageProps']
+        if 'release_en' not in data['itemData']:
+            break
+        print(match)
+        json.dump(data,open(os.path.join(basePath,f'supports/{match}.json'),'w'))
+        time.sleep(.5)
+
 
 if __name__ == "__main__":
     
@@ -409,7 +441,7 @@ if __name__ == "__main__":
         time.sleep(1)
     print('found uma musume')
 
-
+    checkForUpdates()
 
     window = AlwaysOnTopWindow(supports,costumes,traineeAndCostumeEvents,scenarioEvents)
     threading.Thread(target=update_loop, args=(window,engine,win), daemon=True).start()
