@@ -5,3 +5,4 @@ onnxruntime
 mss
 psutil
 PyWinCtl
+requests
