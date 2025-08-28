@@ -42,7 +42,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: umatrain-windows
-          path: dist/umatrain.exe
+          path: dist/umatrain
 
       - name: Upload Linux binary
         if: runner.os == 'Linux'
