@@ -333,7 +333,7 @@ if __name__ == "__main__":
     scenarios = loadJson('scenarioEvents.json')
     td = {'bo':'Bond','sk': 'Skill','en':'Energy','sp':'Speed','mo':'Mood','po':'Power','pt':'Skill Points','st':'Stamina','in':'Wit','gu':'Guts','me': 'Max Energy','5s':'All Stats','se': 'Effect',\
           'sg':'Negative skill','sre': 'Skill removed','mt':'Performance token you have the least of','sga':'Star gauge','all_disc':'All discipline levels','sr':'Multiple skills possible',\
-            'rc': 'Race change','sc':'Secret check','ls':'Last trained stat','fd':'Lock','fa':'Fans','stat_not_disabled':'Stat that wasnt disabled','ra':'Cancel goal','se_h':'if effect healed',\
+            'rc': 'Race change','sc':'Secret check','ls':'Last trained stat','most_trained':'Most trained stat','fd':'Lock','fa':'Fans','stat_not_disabled':'Stat that wasnt disabled','ra':'Cancel goal','se_h':'if effect healed',\
                 'se_nh':'If effect not healed','track_hint':'Relevant track hint','unspecified stats':'Stats','hp':'Remove skill','co':'If season is','bo_r':'Bond of random support cards'}
     td2 = {'ds':'Datable','ee':'End Chain','he':'Heal status','rs':'Random stat','di':'OR','nl': '\n','sl': 'If linked vvv','n':'nothing','o':'nothing','no':'nothing',\
            'result_good':"Good Result",'result_average':'Average Result','result_bad': "Bad Result",'motivation_good':'Mood >= Good','motivation_not_good': 'Mood < Good','ct':'???','rr':'Standard race rewards',\
